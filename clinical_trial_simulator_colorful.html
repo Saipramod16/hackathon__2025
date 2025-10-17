@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Trial Simulator with Database</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: fadeIn 1s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .header-image {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header-image img {
+            width: 100%;
+            max-width: 600px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        p {
+            text-align: center;
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        #runButton {
+            display: block;
+            margin: 0 auto;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        #runButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.6);
+        }
+        #runButton:active {
+            transform: translateY(0);
+        }
+        #runButton i {
+            margin-right: 10px;
+        }
+        #output {
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            color: #495057;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            text-align: center;
+            font-size: 1.8em;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        tr:hover {
+            background: #e8f5e8;
+            transition: background 0.3s ease;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .icon {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-flask icon"></i>Clinical Trial Simulator with Database</h1>
+        <div class="header-image">
+            <img src="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Medical Research Lab">
+        </div>
+        <p><i class="fas fa-info-circle icon"></i>This page runs the clinical trial simulation in your browser using Pyodide (Python in WebAssembly) and saves results to an in-memory SQLite database.</p>
+        <button id="runButton"><i class="fas fa-play"></i>Run Simulation</button>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading Pyodide and running simulation...</p>
+        </div>
+        <div id="output"></div>
+        <h2><i class="fas fa-table icon"></i>Sample Results from Database</h2>
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-birthday-cake"></i>Age</th>
+                    <th><i class="fas fa-venus-mars"></i>Gender</th>
+                    <th><i class="fas fa-weight"></i>BMI</th>
+                    <th><i class="fas fa-heartbeat"></i>Comorbidities</th>
+                    <th><i class="fas fa-dna"></i>Genetics</th>
+                    <th><i class="fas fa-chart-line"></i>Baseline Cholesterol</th>
+                    <th><i class="fas fa-chart-line"></i>Final Cholesterol</th>
+                    <th><i class="fas fa-percentage"></i>Reduction %</th>
+                    <th><i class="fas fa-exclamation-triangle"></i>Side Effects</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+        </table>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <script>
+        async function runSimulation() {
+            const outputDiv = document.getElementById('output');
+            const resultsBody = document.getElementById('resultsBody');
+            const loadingDiv = document.getElementById('loading');
+            const runButton = document.getElementById('runButton');
+
+            runButton.disabled = true;
+            loadingDiv.style.display = 'block';
+            outputDiv.textContent = '';
+            resultsBody.innerHTML = '';
+
+            try {
+                let pyodide = await loadPyodide();
+                await pyodide.loadPackage(['numpy', 'pandas', 'scipy', 'sqlite3']);
+
+                let pythonCode = `
+import numpy as np
+import pandas as pd
+from scipy import stats
+import random
+import sqlite3
+import sys
+from io import StringIO
+
+# Capture stdout
+old_stdout = sys.stdout
+sys.stdout = captured_output = StringIO()
+
+# Constants based on simplified real-world data
+# Demographics: Age (normal around 50), Gender (50/50), BMI (normal around 25)
+# Comorbidities: Probabilities for diabetes, hypertension, etc.
+# Genetics: Simplified risk alleles for cholesterol metabolism
+
+class Patient:
+    def __init__(self):
+        self.age = np.random.normal(50, 10)  # Mean 50, SD 10
+        self.gender = random.choice(['Male', 'Female'])
+        self.bmi = np.random.normal(25, 5)  # Mean 25, SD 5
+        self.comorbidities = self.generate_comorbidities()
+        self.genetics = self.generate_genetics()
+        self.baseline_cholesterol = self.calculate_baseline_cholesterol()
+        self.side_effects = []
+
+    def generate_comorbidities(self):
+        # Simplified probabilities
+        diabetes_prob = 0.1 if self.age > 40 else 0.05
+        hypertension_prob = 0.2 if self.age > 50 else 0.1
+        comorbidities = []
+        if random.random() < diabetes_prob:
+            comorbidities.append('Diabetes')
+        if random.random() < hypertension_prob:
+            comorbidities.append('Hypertension')
+        return comorbidities
+
+    def generate_genetics(self):
+        # Simplified: Risk alleles for poor cholesterol metabolism
+        risk_allele_prob = 0.3  # 30% have risk allele
+        return 'High Risk' if random.random() < risk_allele_prob else 'Low Risk'
+
+    def calculate_baseline_cholesterol(self):
+        # Baseline cholesterol influenced by age, BMI, genetics
+        base = 200  # mg/dL
+        base += (self.age - 50) * 2  # Increases with age
+        base += (self.bmi - 25) * 3  # Increases with BMI
+        if self.genetics == 'High Risk':
+            base += 20
+        return max(150, base + np.random.normal(0, 10))  # Add noise
+
+class Drug:
+    def __init__(self, name='Statin'):
+        self.name = name
+        self.dose = 20  # mg/day
+        self.duration = 12  # weeks
+        self.efficacy_factor = 0.15  # % reduction per dose unit
+        self.side_effect_probs = {
+            'Muscle Pain': 0.05,
+            'Liver Damage': 0.02,
+            'Headache': 0.03
+        }
+
+    def simulate_effect(self, patient, weeks):
+        # Simplified PK/PD: Linear reduction in cholesterol
+        reduction = self.efficacy_factor * self.dose * weeks
+        # Modifiers
+        if patient.genetics == 'High Risk':
+            reduction *= 0.8  # Less effective
+        if 'Diabetes' in patient.comorbidities:
+            reduction *= 1.1  # More effective
+        if patient.bmi > 30:
+            reduction *= 0.9  # Less effective in obese
+        new_cholesterol = patient.baseline_cholesterol * (1 - reduction / 100)
+        return max(100, new_cholesterol)  # Floor at 100
+
+    def check_side_effects(self, patient):
+        side_effects = []
+        for effect, prob in self.side_effect_probs.items():
+            # Increase prob based on patient factors
+            adjusted_prob = prob
+            if patient.age > 60:
+                adjusted_prob *= 1.5
+            if patient.genetics == 'High Risk':
+                adjusted_prob *= 1.2
+            if random.random() < adjusted_prob:
+                side_effects.append(effect)
+        return side_effects
+
+class TrialSimulator:
+    def __init__(self, num_patients=1000, drug=None):
+        self.num_patients = num_patients
+        self.drug = drug or Drug()
+        self.patients = [Patient() for _ in range(num_patients)]
+        self.results = []
+
+    def run_trial(self):
+        for patient in self.patients:
+            # Simulate over duration
+            final_cholesterol = self.drug.simulate_effect(patient, self.drug.duration)
+            side_effects = self.drug.check_side_effects(patient)
+            patient.side_effects = side_effects
+            reduction = ((patient.baseline_cholesterol - final_cholesterol) / patient.baseline_cholesterol) * 100
+            self.results.append({
+                'age': patient.age,
+                'gender': patient.gender,
+                'bmi': patient.bmi,
+                'comorbidities': str(patient.comorbidities),  # Convert to string for DB
+                'genetics': patient.genetics,
+                'baseline_cholesterol': patient.baseline_cholesterol,
+                'final_cholesterol': final_cholesterol,
+                'reduction_percent': reduction,
+                'side_effects': str(side_effects)  # Convert to string for DB
+            })
+
+    def analyze_results(self):
+        df = pd.DataFrame(self.results)
+        # Primary outcome: Mean % reduction
+        mean_reduction = df['reduction_percent'].mean()
+        print(f"Primary Outcome: Mean Cholesterol Reduction: {mean_reduction:.2f}%")
+
+        # Adverse events
+        total_side_effects = sum(len(eval(r['side_effects'])) for r in self.results)  # eval to get list
+        adverse_rate = total_side_effects / self.num_patients
+        print(f"Adverse Event Rate: {adverse_rate:.2f} per patient")
+
+        # Sub-populations with high adverse events
+        high_risk_groups = df[df['genetics'] == 'High Risk']
+        if not high_risk_groups.empty:
+            high_risk_adverse = sum(len(eval(se)) for se in high_risk_groups['side_effects']) / len(high_risk_groups)
+            print(f"High Risk Genetics Adverse Rate: {high_risk_adverse:.2f}")
+
+        elderly = df[df['age'] > 60]
+        if not elderly.empty:
+            elderly_adverse = sum(len(eval(se)) for se in elderly['side_effects']) / len(elderly)
+            print(f"Elderly (>60) Adverse Rate: {elderly_adverse:.2f}")
+
+        # Recommendations
+        recommendations = []
+        if mean_reduction < 10:
+            recommendations.append("Drug efficacy is low; consider higher dose or different drug.")
+        if adverse_rate > 0.1:
+            recommendations.append("High adverse events; exclude high-risk genetics or elderly.")
+        if high_risk_adverse > adverse_rate * 1.5:
+            recommendations.append("Exclude patients with high-risk genetics.")
+        if elderly_adverse > adverse_rate * 1.2:
+            recommendations.append("Exclude patients over 60.")
+
+        print("Recommendations:")
+        for rec in recommendations:
+            print(f"- {rec}")
+
+        return df
+
+# Run the simulation
+if __name__ == "__main__":
+    # Create in-memory database
+    conn = sqlite3.connect(':memory:')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE trial_results (
+            age REAL,
+            gender TEXT,
+            bmi REAL,
+            comorbidities TEXT,
+            genetics TEXT,
+            baseline_cholesterol REAL,
+            final_cholesterol REAL,
+            reduction_percent REAL,
+            side_effects TEXT
+        )
+    ''')
+
+    simulator = TrialSimulator(num_patients=1000)
+    simulator.run_trial()
+    df = simulator.analyze_results()
+
+    # Insert results into DB
+    for result in simulator.results:
+        cursor.execute('''
+            INSERT INTO trial_results (age, gender, bmi, comorbidities, genetics, baseline_cholesterol, final_cholesterol, reduction_percent, side_effects)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (result['age'], result['gender'], result['bmi'], result['comorbidities'], result['genetics'], result['baseline_cholesterol'], result['final_cholesterol'], result['reduction_percent'], result['side_effects']))
+
+    conn.commit()
+
+    # Fetch first 10 results for display
+    cursor.execute('SELECT * FROM trial_results LIMIT 10')
+    sample_results = cursor.fetchall()
+
+    print("\\nSimulation completed. Results saved to in-memory SQLite database.")
+
+    # Restore stdout and get output
+    output = captured_output.getvalue()
+    sys.stdout = old_stdout
+
+# Return output and sample results
+output, sample_results
+`;
+
+                let result = pyodide.runPython(pythonCode);
+                let output = result[0];
+                let sampleResults = result[1];
+
+                loadingDiv.style.display = 'none';
+                runButton.disabled = false;
+                outputDiv.textContent = output;
+
+                // Display sample results in table
+                sampleResults.forEach(row => {
+                    let tr = document.createElement('tr');
+                    row.forEach(cell => {
+                        let td = document.createElement('td');
+                        td.textContent = cell;
+                        tr.appendChild(td);
+                    });
+                    resultsBody.appendChild(tr);
+                });
+
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                runButton.disabled = false;
+                outputDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        document.getElementById('runButton').addEventListener('click', runSimulation);
+    </script>
+</body>
+</html>
